@@ -8,14 +8,19 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var supabaseService = SupabaseService.shared
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        Group {
+            if supabaseService.isAuthenticated {
+                WorkoutListView()
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            } else {
+                LoginView()
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
         }
-        .padding()
+        .animation(.easeInOut(duration: 0.4), value: supabaseService.isAuthenticated)
     }
 }
 

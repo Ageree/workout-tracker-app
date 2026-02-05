@@ -115,6 +115,9 @@
 			);
 			productName = "workout tracker app";
 			productReference = E28F4C812F265359002B94F9 /* workout tracker app.app */;
+			packageProductDependencies = (
+				40ACAB4249B2486690227184 /* Supabase */,
+			);
 			productType = "com.apple.product-type.application";
 		};
 		E28F4C8D2F26535B002B94F9 /* workout tracker appTests */ = {
@@ -165,6 +168,27 @@
 		};
 /* End PBXNativeTarget section */
 
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CC8F728F1AF249E7812724F4 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+
+/* Begin XCSwiftPackageProductDependency section */
+		40ACAB4249B2486690227184 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CC8F728F1AF249E7812724F4 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
+
 /* Begin PBXProject section */
 		E28F4C792F265358002B94F9 /* Project object */ = {
 			isa = PBXProject;
@@ -204,6 +228,9 @@
 				E28F4C8D2F26535B002B94F9 /* workout tracker appTests */,
 				E28F4C972F26535B002B94F9 /* workout tracker appUITests */,
 			);
+		packageReferences = (
+			CC8F728F1AF249E7812724F4 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+		);
 		};
 /* End PBXProject section */
 
