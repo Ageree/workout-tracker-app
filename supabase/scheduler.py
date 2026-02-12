@@ -92,6 +92,9 @@ class AgentScheduler:
             supabase_key = self.settings.supabase_service_key
             openai_api_key = self.settings.openai_api_key
             anthropic_api_key = self.settings.anthropic_api_key
+            kimi_api_key = self.settings.kimi_api_key
+        else:
+            kimi_api_key = os.getenv('KIMI_API_KEY')
         
         # Validate required credentials
         if not supabase_url or not supabase_key:
@@ -101,11 +104,24 @@ class AgentScheduler:
         self.supabase = SupabaseClient(supabase_url, supabase_key)
         self.llm = None
 
-        if openai_api_key or anthropic_api_key:
+        # Determine LLM provider priority: Kimi > OpenAI > Anthropic
+        if kimi_api_key or openai_api_key or anthropic_api_key:
+            # Determine default provider
+            if kimi_api_key:
+                default_provider = 'kimi'
+                self.logger.info("Using Kimi (Moonshot AI) as LLM provider")
+            elif openai_api_key:
+                default_provider = 'openai'
+                self.logger.info("Using OpenAI as LLM provider")
+            else:
+                default_provider = 'anthropic'
+                self.logger.info("Using Anthropic as LLM provider")
+            
             self.llm = LLMService(
                 openai_api_key=openai_api_key,
                 anthropic_api_key=anthropic_api_key,
-                default_provider='openai' if openai_api_key else 'anthropic'
+                kimi_api_key=kimi_api_key,
+                default_provider=default_provider
             )
 
         # Initialize fitness scraper with settings

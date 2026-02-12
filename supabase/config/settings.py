@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     # API Keys
     openai_api_key: Optional[str] = Field(None, description="OpenAI API key")
     anthropic_api_key: Optional[str] = Field(None, description="Anthropic API key")
+    kimi_api_key: Optional[str] = Field(None, description="Kimi (Moonshot AI) API key")
     pubmed_api_key: Optional[str] = Field(None, description="PubMed API key")
     perplexity_api_key: Optional[str] = Field(None, description="Perplexity API key for Sonar search")
     
@@ -37,6 +38,7 @@ class Settings(BaseSettings):
     openai_model: str = Field("gpt-4o", description="OpenAI model to use")
     embedding_model: str = Field("text-embedding-3-small", description="Embedding model")
     anthropic_model: str = Field("claude-3-sonnet-20240229", description="Anthropic model")
+    kimi_model: str = Field("kimi-k2.5", description="Kimi model to use")
     
     # Agent Intervals (seconds)
     research_interval: int = Field(86400, description="Research agent interval (seconds)")
@@ -126,6 +128,14 @@ class Settings(BaseSettings):
         if v and not v.startswith('sk-'):
             raise ValueError('openai_api_key must start with "sk-"')
         return v
+    
+    @field_validator('kimi_api_key')
+    @classmethod
+    def validate_kimi_key_format(cls, v: Optional[str]) -> Optional[str]:
+        """Validate Kimi API key format if provided."""
+        if v and not v.startswith('sk-'):
+            raise ValueError('kimi_api_key must start with "sk-"')
+        return v
 
     @field_validator('anthropic_api_key')
     @classmethod
@@ -172,10 +182,10 @@ class Settings(BaseSettings):
         Raises:
             ValueError: If no LLM API keys are configured
         """
-        if not self.openai_api_key and not self.anthropic_api_key:
+        if not self.openai_api_key and not self.anthropic_api_key and not self.kimi_api_key:
             raise ValueError(
                 "At least one LLM API key must be configured. "
-                "Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable."
+                "Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or KIMI_API_KEY environment variable."
             )
         return True
     
@@ -186,12 +196,22 @@ class Settings(BaseSettings):
         Returns:
             Dictionary with LLM configuration
         """
+        # Determine default provider based on available keys
+        if self.kimi_api_key:
+            default_provider = 'kimi'
+        elif self.openai_api_key:
+            default_provider = 'openai'
+        else:
+            default_provider = 'anthropic'
+            
         return {
             'openai_api_key': self.openai_api_key,
             'anthropic_api_key': self.anthropic_api_key,
-            'default_provider': 'openai' if self.openai_api_key else 'anthropic',
+            'kimi_api_key': self.kimi_api_key,
+            'default_provider': default_provider,
             'openai_model': self.openai_model,
             'anthropic_model': self.anthropic_model,
+            'kimi_model': self.kimi_model,
         }
     
     def get_agent_intervals(self) -> dict:

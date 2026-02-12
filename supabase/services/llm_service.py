@@ -1,12 +1,13 @@
 """
 LLM Service for Extraction and Validation Agents.
-Supports OpenAI GPT-4o and Anthropic Claude.
+Supports OpenAI GPT-4o, Anthropic Claude, and Kimi (Moonshot AI).
 """
 
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 import json
 import httpx
+import os
 
 
 @dataclass
@@ -131,6 +132,7 @@ Respond with JSON:
         self,
         openai_api_key: Optional[str] = None,
         anthropic_api_key: Optional[str] = None,
+        kimi_api_key: Optional[str] = None,
         default_provider: str = 'openai',
         model: Optional[str] = None
     ):
@@ -140,13 +142,24 @@ Respond with JSON:
         Args:
             openai_api_key: OpenAI API key
             anthropic_api_key: Anthropic API key
-            default_provider: Default provider ('openai' or 'anthropic')
+            kimi_api_key: Kimi (Moonshot AI) API key
+            default_provider: Default provider ('openai', 'anthropic', or 'kimi')
             model: Model name (defaults to provider's default)
         """
         self.openai_api_key = openai_api_key
         self.anthropic_api_key = anthropic_api_key
+        self.kimi_api_key = kimi_api_key or os.getenv('KIMI_API_KEY')
         self.default_provider = default_provider
-        self.model = model or ('gpt-4o' if default_provider == 'openai' else 'claude-3-sonnet-20240229')
+        
+        # Set default model based on provider
+        if model:
+            self.model = model
+        elif default_provider == 'kimi':
+            self.model = 'kimi-k2.5'
+        elif default_provider == 'openai':
+            self.model = 'gpt-4o'
+        else:
+            self.model = 'claude-3-sonnet-20240229'
     
     async def _call_openai(
         self,
@@ -225,6 +238,45 @@ Respond with JSON:
             data = response.json()
             return data['content'][0]['text']
     
+    async def _call_kimi(
+        self,
+        prompt: str,
+        temperature: float = 0.1,
+        max_tokens: int = 2000
+    ) -> str:
+        """Call Kimi (Moonshot AI) API using OpenAI-compatible interface."""
+        if not self.kimi_api_key:
+            raise ValueError("Kimi API key not provided")
+        
+        # Kimi uses OpenAI-compatible API
+        url = "https://api.moonshot.cn/v1/chat/completions"
+        
+        headers = {
+            'Authorization': f'Bearer {self.kimi_api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'model': self.model,
+            'messages': [
+                {'role': 'system', 'content': 'You are a scientific research assistant. Respond only with valid JSON.'},
+                {'role': 'user', 'content': prompt}
+            ],
+            'temperature': temperature,
+            'max_tokens': max_tokens
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=60.0
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data['choices'][0]['message']['content']
+
     async def _call_llm(
         self,
         prompt: str,
@@ -234,6 +286,8 @@ Respond with JSON:
         """Call the configured LLM provider."""
         if self.default_provider == 'openai':
             return await self._call_openai(prompt, temperature, max_tokens)
+        elif self.default_provider == 'kimi':
+            return await self._call_kimi(prompt, temperature, max_tokens)
         else:
             return await self._call_anthropic(prompt, temperature, max_tokens)
     
@@ -427,6 +481,7 @@ Respond with JSON:
     async def generate_embedding(self, text: str) -> Optional[List[float]]:
         """
         Generate embedding for text using OpenAI API.
+        Note: Kimi doesn't have embedding API, so we use OpenAI for embeddings.
         
         Args:
             text: Text to embed
@@ -463,3 +518,21 @@ Respond with JSON:
         except Exception as e:
             print(f"Error generating embedding: {e}")
             return None
+    
+    def set_provider(self, provider: str, model: Optional[str] = None) -> None:
+        """
+        Change the LLM provider at runtime.
+        
+        Args:
+            provider: Provider name ('openai', 'anthropic', or 'kimi')
+            model: Optional model name override
+        """
+        self.default_provider = provider
+        if model:
+            self.model = model
+        elif provider == 'kimi':
+            self.model = 'kimi-k2.5'
+        elif provider == 'openai':
+            self.model = 'gpt-4o'
+        else:
+            self.model = 'claude-3-sonnet-20240229'
