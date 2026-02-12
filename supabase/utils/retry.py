@@ -67,6 +67,14 @@ class RetryMetrics:
         return self.successful_attempts / self.total_attempts
 
 
+@dataclass
+class DeadLetterQueueConfig:
+    """Configuration for Dead Letter Queue."""
+    max_size: int = 10000
+    retention_days: int = 30
+    alert_threshold: int = 100
+
+
 class DeadLetterQueue:
     """
     Queue for failed tasks that exhausted all retries.
