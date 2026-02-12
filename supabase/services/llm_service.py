@@ -133,6 +133,7 @@ Respond with JSON:
         openai_api_key: Optional[str] = None,
         anthropic_api_key: Optional[str] = None,
         kimi_api_key: Optional[str] = None,
+        deepseek_api_key: Optional[str] = None,
         default_provider: str = 'openai',
         model: Optional[str] = None
     ):
@@ -143,17 +144,21 @@ Respond with JSON:
             openai_api_key: OpenAI API key
             anthropic_api_key: Anthropic API key
             kimi_api_key: Kimi (Moonshot AI) API key
-            default_provider: Default provider ('openai', 'anthropic', or 'kimi')
+            deepseek_api_key: DeepSeek API key
+            default_provider: Default provider ('openai', 'anthropic', 'kimi', or 'deepseek')
             model: Model name (defaults to provider's default)
         """
         self.openai_api_key = openai_api_key
         self.anthropic_api_key = anthropic_api_key
         self.kimi_api_key = kimi_api_key or os.getenv('KIMI_API_KEY')
+        self.deepseek_api_key = deepseek_api_key or os.getenv('DEEPSEEK_API_KEY')
         self.default_provider = default_provider
         
         # Set default model based on provider
         if model:
             self.model = model
+        elif default_provider == 'deepseek':
+            self.model = 'deepseek-chat'
         elif default_provider == 'kimi':
             self.model = 'kimi-k2.5'
         elif default_provider == 'openai':
@@ -238,6 +243,44 @@ Respond with JSON:
             data = response.json()
             return data['content'][0]['text']
     
+    async def _call_deepseek(
+        self,
+        prompt: str,
+        temperature: float = 0.1,
+        max_tokens: int = 2000
+    ) -> str:
+        """Call DeepSeek API using OpenAI-compatible interface."""
+        if not self.deepseek_api_key:
+            raise ValueError("DeepSeek API key not provided")
+        
+        url = "https://api.deepseek.com/chat/completions"
+        
+        headers = {
+            'Authorization': f'Bearer {self.deepseek_api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'model': self.model,
+            'messages': [
+                {'role': 'system', 'content': 'You are a scientific research assistant. Respond only with valid JSON.'},
+                {'role': 'user', 'content': prompt}
+            ],
+            'temperature': temperature,
+            'max_tokens': max_tokens
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=60.0
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data['choices'][0]['message']['content']
+
     async def _call_kimi(
         self,
         prompt: str,
@@ -284,7 +327,9 @@ Respond with JSON:
         max_tokens: int = 2000
     ) -> str:
         """Call the configured LLM provider."""
-        if self.default_provider == 'openai':
+        if self.default_provider == 'deepseek':
+            return await self._call_deepseek(prompt, temperature, max_tokens)
+        elif self.default_provider == 'openai':
             return await self._call_openai(prompt, temperature, max_tokens)
         elif self.default_provider == 'kimi':
             return await self._call_kimi(prompt, temperature, max_tokens)
@@ -524,12 +569,14 @@ Respond with JSON:
         Change the LLM provider at runtime.
         
         Args:
-            provider: Provider name ('openai', 'anthropic', or 'kimi')
+            provider: Provider name ('openai', 'anthropic', 'kimi', or 'deepseek')
             model: Optional model name override
         """
         self.default_provider = provider
         if model:
             self.model = model
+        elif provider == 'deepseek':
+            self.model = 'deepseek-chat'
         elif provider == 'kimi':
             self.model = 'kimi-k2.5'
         elif provider == 'openai':

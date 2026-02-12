@@ -93,8 +93,10 @@ class AgentScheduler:
             openai_api_key = self.settings.openai_api_key
             anthropic_api_key = self.settings.anthropic_api_key
             kimi_api_key = self.settings.kimi_api_key
+            deepseek_api_key = self.settings.deepseek_api_key
         else:
             kimi_api_key = os.getenv('KIMI_API_KEY')
+            deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
         
         # Validate required credentials
         if not supabase_url or not supabase_key:
@@ -104,10 +106,13 @@ class AgentScheduler:
         self.supabase = SupabaseClient(supabase_url, supabase_key)
         self.llm = None
 
-        # Determine LLM provider priority: Kimi > OpenAI > Anthropic
-        if kimi_api_key or openai_api_key or anthropic_api_key:
+        # Determine LLM provider priority: DeepSeek > Kimi > OpenAI > Anthropic
+        if deepseek_api_key or kimi_api_key or openai_api_key or anthropic_api_key:
             # Determine default provider
-            if kimi_api_key:
+            if deepseek_api_key:
+                default_provider = 'deepseek'
+                self.logger.info("Using DeepSeek as LLM provider")
+            elif kimi_api_key:
                 default_provider = 'kimi'
                 self.logger.info("Using Kimi (Moonshot AI) as LLM provider")
             elif openai_api_key:
@@ -121,6 +126,7 @@ class AgentScheduler:
                 openai_api_key=openai_api_key,
                 anthropic_api_key=anthropic_api_key,
                 kimi_api_key=kimi_api_key,
+                deepseek_api_key=deepseek_api_key,
                 default_provider=default_provider
             )
 

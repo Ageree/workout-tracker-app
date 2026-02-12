@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = Field(None, description="OpenAI API key")
     anthropic_api_key: Optional[str] = Field(None, description="Anthropic API key")
     kimi_api_key: Optional[str] = Field(None, description="Kimi (Moonshot AI) API key")
+    deepseek_api_key: Optional[str] = Field(None, description="DeepSeek API key")
     pubmed_api_key: Optional[str] = Field(None, description="PubMed API key")
     perplexity_api_key: Optional[str] = Field(None, description="Perplexity API key for Sonar search")
     
@@ -39,6 +40,7 @@ class Settings(BaseSettings):
     embedding_model: str = Field("text-embedding-3-small", description="Embedding model")
     anthropic_model: str = Field("claude-3-sonnet-20240229", description="Anthropic model")
     kimi_model: str = Field("kimi-k2.5", description="Kimi model to use")
+    deepseek_model: str = Field("deepseek-chat", description="DeepSeek model to use")
     
     # Agent Intervals (seconds)
     research_interval: int = Field(86400, description="Research agent interval (seconds)")
@@ -197,7 +199,10 @@ class Settings(BaseSettings):
             Dictionary with LLM configuration
         """
         # Determine default provider based on available keys
-        if self.kimi_api_key:
+        # Priority: DeepSeek > Kimi > OpenAI > Anthropic
+        if self.deepseek_api_key:
+            default_provider = 'deepseek'
+        elif self.kimi_api_key:
             default_provider = 'kimi'
         elif self.openai_api_key:
             default_provider = 'openai'
@@ -208,10 +213,12 @@ class Settings(BaseSettings):
             'openai_api_key': self.openai_api_key,
             'anthropic_api_key': self.anthropic_api_key,
             'kimi_api_key': self.kimi_api_key,
+            'deepseek_api_key': self.deepseek_api_key,
             'default_provider': default_provider,
             'openai_model': self.openai_model,
             'anthropic_model': self.anthropic_model,
             'kimi_model': self.kimi_model,
+            'deepseek_model': self.deepseek_model,
         }
     
     def get_agent_intervals(self) -> dict:
